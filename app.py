@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "secret key"
 
-@app.route('/', methods=['POST'])
+@app.route('/process', methods=['POST'])
 def process_image():
     return json.dumps({
         "hot dog": "$5",
