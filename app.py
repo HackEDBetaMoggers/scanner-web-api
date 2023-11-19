@@ -25,7 +25,7 @@ def upload_file():
         filename = secure_filename(image.filename)
         image.save(f"./images/{filename}")
         res = ocr.ocr_image(image.stream)
-        flash(f'OCRed text: {res['text']}', "success")
+        flash(f"OCRed text: {res['text']}", "success")
     return render_template('index.html')
 
 if __name__ == '__main__':

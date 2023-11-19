@@ -1,3 +1,4 @@
+import re
 from typing import Dict
 from pytesseract import Output, pytesseract
 import io
@@ -77,43 +78,47 @@ def preprocess_image(image: cv2.typing.MatLike) -> cv2.typing.MatLike:
 
     return processed_img
 
-def ocr_image(image_stream: io.BytesIO) -> Dict[str, str]:
+def ocr_image(image_stream: io.BytesIO, return_img = None) -> Dict[str, str]:
     """OCR the image data and return the result as JSON."""
 
     image_stream.seek(0)
     img_np = np.frombuffer(image_stream.read(), dtype=np.uint8)
     img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-
     processed_img = preprocess_image(img)
-
-    data = pytesseract.image_to_data(processed_img, output_type=Output.DICT)
-    n_boxes = len(data['level'])
-    for i in range(n_boxes):
-        (x, y, w, h) = (data['left'][i], data['top'][i], data['width'][i], data['height'][i])
-        cv2.rectangle(processed_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-    return data, image_resize(processed_img, height=500)
+    data = pytesseract.image_to_data(processed_img, output_type=Output.DICT, config='--psm 4')
+    return data, image_resize(processed_img, height=500) if return_img else None
 
 def isolate_prices(data: Dict[str, str]) -> Dict[str, str]:
-    """Isolate the prices from the OCR data."""
+    """Isolate the prices from OCR data
+    1. transform to lines based off of empty ''
+    2. match regex for rows with prices
     """
-    algo:
-        1. isolate dollar signs
-        2. look to the left until another dollar sign is encountered to get the title
-    """
-    dollar_indices = [i for i, x in enumerate(data['text']) if '$' in x]
-    for i in dollar_indices[::-1]:
-        j = i
-        item = []
-        while j > 0 and '$' not in data['text'][j]:
-            j -= 1
-            item.append(data['text'][j])
-        print(data['text'][i])
+    
+    lines = []
+    line = []
+    for i in range(len(data['text'])):
+        if data['text'][i] == '':
+            lines.append(line)
+            line = []
+        else:
+            line.append(data['text'][i])
+    lines.append(line)
+    
+    res = {}
+    pattern = r'([0-9]+\.[0-9]+)'
+    for line in lines:
+        matches = re.search(pattern, ' '.join(line))
+        if matches:
+            price= matches.group(0)
+            for word in range(len(line)):
+                if price in line[word]:
+                    res[' '.join(line[:word])] = price
+                    break
+    return res
 
 if __name__ == "__main__":
     with open("images/receipt1_1.jpg", "rb") as f:
-        data, img = ocr_image(f)
+        data, _ = ocr_image(f)
         print(data['text'])
-        isolate_prices(data)
-        cv2.imshow("img", img)
-        cv2.waitKey(0)
+        res = isolate_prices(data)
+        print(res)
