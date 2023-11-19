@@ -1,3 +1,4 @@
 flask
 pytesseract
 opencv-python
+numpy
