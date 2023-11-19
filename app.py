@@ -1,19 +1,34 @@
+import io
 import json
-import ocr
 
-from flask import Flask, render_template, request, redirect, flash
+import cv2
+import ocr
+import base64
+import codecs
+
+from flask import Flask, render_template, request, redirect, flash, jsonify
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = "secret key"
 
 @app.route('/process', methods=['POST'])
 def process_image():
-    return json.dumps({
-        "hot dog": "$5",
-        "ice cream": "$3",
-        "soda": "$2"
-    })
+    image = json.loads(request.data).get("image")
+    if not image:
+        return "No image provided", 400
+    image = image[image.find(",")+1:]
+    
+    binary_img = io.BytesIO(base64.decodebytes(codecs.encode(image, 'utf-8')))
+    binary_img.seek(0)
+    data, _ = ocr.ocr_image(binary_img, True)
+    cv2.imshow("img", _)
+    cv2.waitKey(0)
+    res = ocr.isolate_prices(data)
+    response = jsonify(res)
+    return response
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
@@ -29,4 +44,4 @@ def upload_file():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(host='localhost')
+    app.run(host='0.0.0.0')

@@ -1,4 +1,7 @@
 flask
+flask_cors
 pytesseract
 opencv-python
 numpy
+imutils
+scipy

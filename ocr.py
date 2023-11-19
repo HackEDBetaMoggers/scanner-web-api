@@ -1,9 +1,11 @@
 import re
-from typing import Dict
+from typing import Dict, Optional, Tuple
 from pytesseract import Output, pytesseract
 import io
 import cv2
 import numpy as np
+import imutils
+from imutils.perspective import four_point_transform
 
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
@@ -62,7 +64,7 @@ def preprocess_image(image: cv2.typing.MatLike) -> cv2.typing.MatLike:
     gray_image = cv2.cvtColor(rescaled_image, cv2.COLOR_BGR2GRAY)
 
     # Apply thresholding
-    _, binary_image = cv2.threshold(gray_image, 150, 255, cv2.THRESH_BINARY)
+    _, binary_image = cv2.threshold(gray_image, 150, 255, cv2.THRESH_OTSU)
 
     # Denoise the image using morphological operations (opening)
     #kernel = np.ones((2,2),np.uint8)
@@ -73,12 +75,13 @@ def preprocess_image(image: cv2.typing.MatLike) -> cv2.typing.MatLike:
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     contrast_adjusted_image = clahe.apply(denoised_image)
     #contrast_adjusted_image = denoised_image
+    inverted_image = cv2.bitwise_not(contrast_adjusted_image)
     
-    processed_img = contrast_adjusted_image
+    processed_img = inverted_image
 
     return processed_img
 
-def ocr_image(image_stream: io.BytesIO, return_img = None) -> Dict[str, str]:
+def ocr_image(image_stream: io.BytesIO, return_img = None) -> Tuple[Dict[str, str], Optional[cv2.typing.MatLike]]:
     """OCR the image data and return the result as JSON."""
 
     image_stream.seek(0)
@@ -86,6 +89,7 @@ def ocr_image(image_stream: io.BytesIO, return_img = None) -> Dict[str, str]:
     img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
     processed_img = preprocess_image(img)
     data = pytesseract.image_to_data(processed_img, output_type=Output.DICT, config='--psm 4')
+
     return data, image_resize(processed_img, height=500) if return_img else None
 
 def isolate_prices(data: Dict[str, str]) -> Dict[str, str]:
@@ -110,15 +114,17 @@ def isolate_prices(data: Dict[str, str]) -> Dict[str, str]:
         matches = re.search(pattern, ' '.join(line))
         if matches:
             price= matches.group(0)
-            for word in range(len(line)):
-                if price in line[word]:
-                    res[' '.join(line[:word])] = price
+            for i, word in enumerate(line):
+                if price in word:
+                    res[' '.join(line[:i])] = float(price)
                     break
     return res
 
 if __name__ == "__main__":
-    with open("images/receipt1_1.jpg", "rb") as f:
-        data, _ = ocr_image(f)
+    with open("images/text-custom-font.png", "rb") as f:
+        data, img = ocr_image(f, True)
         print(data['text'])
         res = isolate_prices(data)
         print(res)
+        cv2.imshow("img", img)
+        cv2.waitKey(0)
