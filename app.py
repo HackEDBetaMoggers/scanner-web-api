@@ -24,8 +24,6 @@ def process_image():
     binary_img = io.BytesIO(base64.decodebytes(codecs.encode(image, 'utf-8')))
     binary_img.seek(0)
     data, _ = ocr.ocr_image(binary_img, True)
-    cv2.imshow("img", _)
-    cv2.waitKey(0)
     res = ocr.isolate_prices(data)
     response = jsonify(res)
     return response

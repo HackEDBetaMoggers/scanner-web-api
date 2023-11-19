@@ -64,7 +64,8 @@ def preprocess_image(image: cv2.typing.MatLike) -> cv2.typing.MatLike:
     gray_image = cv2.cvtColor(rescaled_image, cv2.COLOR_BGR2GRAY)
 
     # Apply thresholding
-    _, binary_image = cv2.threshold(gray_image, 150, 255, cv2.THRESH_OTSU)
+    _, binary_image = cv2.threshold(gray_image, 150, 255, cv2.THRESH_BINARY)
+    #binary_image = gray_image
 
     # Denoise the image using morphological operations (opening)
     #kernel = np.ones((2,2),np.uint8)
